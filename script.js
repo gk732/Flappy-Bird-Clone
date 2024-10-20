@@ -19,6 +19,7 @@ bird.image.src = 'assets/bird.png';
 let pipes = [];
 let frame = 0;
 let score = 0;
+let bestScore = 0; // Initialize best score
 let gameOver = false;
 let animationFrameId;
 
@@ -130,6 +131,15 @@ function drawScore() {
     ctx.fillText(`Score: ${score}`, 10, 30);
 }
 
+// Draw the best score
+function drawBestScore() {
+    ctx.fillStyle = 'white';
+    ctx.font = '24px Arial';
+    const bestScoreText = `Best Score: ${bestScore}`;
+    const bestScoreTextWidth = ctx.measureText(bestScoreText).width;
+    ctx.fillText(bestScoreText, canvas.width - bestScoreTextWidth - 10, 30); // Adjust the x position dynamically
+}
+
 // Main game loop
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -151,16 +161,27 @@ function gameLoop() {
         const gameOverTextWidth = ctx.measureText(gameOverText).width;
         ctx.fillText(gameOverText, (canvas.width - gameOverTextWidth) / 2, canvas.height / 2);
 
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = 'black'; // Set color to black for scores
+        ctx.font = '24px Arial';
+        const currentScoreText = `Current Score: ${score}`;
+        const currentScoreTextWidth = ctx.measureText(currentScoreText).width;
+        ctx.fillText(currentScoreText, (canvas.width - currentScoreTextWidth) / 2, canvas.height / 2 + 40);
+
+        const bestScoreText = `Best Score: ${bestScore}`;
+        const bestScoreTextWidth = ctx.measureText(bestScoreText).width;
+        ctx.fillText(bestScoreText, (canvas.width - bestScoreTextWidth) / 2, canvas.height / 2 + 80);
+
+        ctx.fillStyle = 'black'; // Set color to black for restart instruction
         ctx.font = '24px Arial';
         const restartText = 'Press Space or Arrow Up to Restart';
         const restartTextWidth = ctx.measureText(restartText).width;
-        ctx.fillText(restartText, (canvas.width - restartTextWidth) / 2, canvas.height / 2 + 40);
+        ctx.fillText(restartText, (canvas.width - restartTextWidth) / 2, canvas.height / 2 + 120);
 
         return; // Exit the loop to prevent further updates
     }
 
     drawScore();
+    drawBestScore(); // Draw the best score
     animationFrameId = requestAnimationFrame(gameLoop);
 }
 
@@ -174,17 +195,18 @@ document.getElementById('startButton').addEventListener('click', () => {
     gameOver = false;
     document.getElementById('start-screen').style.display = 'none';
     cancelAnimationFrame(animationFrameId);
-    gameLoop();
+    gameLoop(); // Start the game loop here
 });
 
-// Handle bird jump
+// Handle bird jump with keyboard
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
         jumpSound.currentTime = 0; // Reset the sound to start
         jumpSound.play(); // Play jump sound every time the key is pressed
 
         if (gameOver) {
-            // Restart the game if it's over
+            // Update best score if current score is higher
+            bestScore = Math.max(score, bestScore); 
             bird = { x: 50, y: 150, size: 30, gravity: 0.15, lift: -5, velocity: 0, image: new Image() };
             bird.image.src = 'assets/bird.png'; // Reset the bird image on restart
             pipes = [];
@@ -196,5 +218,26 @@ window.addEventListener('keydown', (e) => {
         } else {
             bird.velocity = bird.lift; // Apply lift to the bird if the game is not over
         }
+    }
+});
+
+// Handle touch event for jump on the entire game area
+canvas.addEventListener('click', () => {
+    jumpSound.currentTime = 0; // Reset the sound to start
+    jumpSound.play(); // Play jump sound on click
+
+    if (gameOver) {
+        // Update best score if current score is higher
+        bestScore = Math.max(score, bestScore); 
+        bird = { x: 50, y: 150, size: 30, gravity: 0.15, lift: -5, velocity: 0, image: new Image() };
+        bird.image.src = 'assets/bird.png'; // Reset the bird image on restart
+        pipes = [];
+        frame = 0;
+        score = 0;
+        gameOver = false;
+        document.getElementById('start-screen').style.display = 'none';
+        gameLoop();
+    } else {
+        bird.velocity = bird.lift; // Apply lift to the bird if the game is not over
     }
 });
