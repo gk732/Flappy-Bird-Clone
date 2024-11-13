@@ -19,38 +19,34 @@ bird.image.src = 'assets/bird.png';
 let pipes = [];
 let frame = 0;
 let score = 0;
-let bestScore = 0; // Initialize best score
+let bestScore = localStorage.getItem('bestScore') || 0;  // Load best score from localStorage
 let gameOver = false;
 let animationFrameId;
+let paused = false;  // Pause flag
+let soundEnabled = true;  // Sound toggle flag
 
-// Load background and pipe images
 let background = new Image();
 background.src = 'assets/background.png';
 
 let pipeImage = new Image();
 pipeImage.src = 'assets/pipe.png';
 
-// Load sound effects
 let jumpSound = new Audio('assets/jump.mp3');
 let hitSound = new Audio('assets/hit.mp3');
 let fallSound = new Audio('assets/fall.mp3');
 
-// Preload sounds to ensure they are ready
 jumpSound.load();
 hitSound.load();
 fallSound.load();
 
-// Draw the background
 function drawBackground() {
     ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 }
 
-// Draw the bird
 function drawBird() {
     ctx.drawImage(bird.image, bird.x, bird.y, bird.size, bird.size);
 }
 
-// Update bird's position
 function updateBird() {
     bird.velocity += bird.gravity;
     bird.velocity *= 0.95;
@@ -60,7 +56,7 @@ function updateBird() {
         bird.y = canvas.height - bird.size;
         bird.velocity = 0;
         gameOver = true;
-        fallSound.play(); // Play fall sound
+        if (soundEnabled) fallSound.play();
     }
 
     if (bird.y < 0) {
@@ -69,7 +65,6 @@ function updateBird() {
     }
 }
 
-// Pipe generation
 function drawPipes() {
     pipes.forEach(pipe => {
         ctx.drawImage(pipeImage, pipe.x, 0, pipe.width, pipe.top);
@@ -100,7 +95,6 @@ function updatePipes() {
     pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
 }
 
-// Collision detection
 function checkCollision() {
     pipes.forEach(pipe => {
         if (
@@ -109,12 +103,11 @@ function checkCollision() {
             (bird.y < pipe.top || bird.y + bird.size > canvas.height - pipe.bottom)
         ) {
             gameOver = true;
-            hitSound.play(); // Play hit sound
+            if (soundEnabled) hitSound.play();
         }
     });
 }
 
-// Score update
 function updateScore() {
     pipes.forEach(pipe => {
         if (!pipe.passed && bird.x > pipe.x + pipe.width) {
@@ -124,68 +117,57 @@ function updateScore() {
     });
 }
 
-// Draw the score
 function drawScore() {
     ctx.fillStyle = 'white';
     ctx.font = '24px Arial';
     ctx.fillText(`Score: ${score}`, 10, 30);
 }
 
-// Draw the best score
 function drawBestScore() {
     ctx.fillStyle = 'white';
     ctx.font = '24px Arial';
     const bestScoreText = `Best Score: ${bestScore}`;
     const bestScoreTextWidth = ctx.measureText(bestScoreText).width;
-    ctx.fillText(bestScoreText, canvas.width - bestScoreTextWidth - 10, 30); // Adjust the x position dynamically
+    ctx.fillText(bestScoreText, canvas.width - bestScoreTextWidth - 10, 30);
 }
 
-// Main game loop
-function gameLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBackground();
+function updateBestScore() {
+    bestScore = Math.max(score, bestScore);
+    localStorage.setItem('bestScore', bestScore);
+}
 
-    if (!gameOver) {
+function gameLoop() {
+    if (!paused && !gameOver) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
         drawBird();
         updateBird();
         drawPipes();
         updatePipes();
         checkCollision();
         updateScore();
-
         frame++;
-    } else {
+        drawScore();
+        drawBestScore();
+    } else if (gameOver) {
+        updateBestScore();
         ctx.fillStyle = 'red';
         ctx.font = 'bold 32px Arial';
         const gameOverText = 'Game Over';
         const gameOverTextWidth = ctx.measureText(gameOverText).width;
         ctx.fillText(gameOverText, (canvas.width - gameOverTextWidth) / 2, canvas.height / 2);
 
-        ctx.fillStyle = 'black'; // Set color to black for scores
+        ctx.fillStyle = 'black';
         ctx.font = '24px Arial';
-        const currentScoreText = `Current Score: ${score}`;
-        const currentScoreTextWidth = ctx.measureText(currentScoreText).width;
-        ctx.fillText(currentScoreText, (canvas.width - currentScoreTextWidth) / 2, canvas.height / 2 + 40);
-
-        const bestScoreText = `Best Score: ${bestScore}`;
-        const bestScoreTextWidth = ctx.measureText(bestScoreText).width;
-        ctx.fillText(bestScoreText, (canvas.width - bestScoreTextWidth) / 2, canvas.height / 2 + 80);
-
-        ctx.fillStyle = 'black'; // Set color to black for restart instruction
-        ctx.font = '24px Arial';
-        const restartText = 'Press Space or Arrow Up to Restart';
-        const restartTextWidth = ctx.measureText(restartText).width;
-        ctx.fillText(restartText, (canvas.width - restartTextWidth) / 2, canvas.height / 2 + 120);
-
-        return; // Exit the loop to prevent further updates
+        ctx.fillText(`Current Score: ${score}`, (canvas.width - ctx.measureText(`Current Score: ${score}`).width) / 2, canvas.height / 2 + 40);
+        ctx.fillText(`Best Score: ${bestScore}`, (canvas.width - ctx.measureText(`Best Score: ${bestScore}`).width) / 2, canvas.height / 2 + 80);
+        ctx.fillText('Press Space or Arrow Up to Restart', (canvas.width - ctx.measureText('Press Space or Arrow Up to Restart').width) / 2, canvas.height / 2 + 120);
+        return;
     }
 
-    drawScore();
-    drawBestScore(); // Draw the best score
     animationFrameId = requestAnimationFrame(gameLoop);
 }
 
-// Handle game start
 document.getElementById('startButton').addEventListener('click', () => {
     bird = { x: 50, y: 150, size: 30, gravity: 0.15, lift: -5, velocity: 0, image: new Image() };
     bird.image.src = 'assets/bird.png';
@@ -195,20 +177,19 @@ document.getElementById('startButton').addEventListener('click', () => {
     gameOver = false;
     document.getElementById('start-screen').style.display = 'none';
     cancelAnimationFrame(animationFrameId);
-    gameLoop(); // Start the game loop here
+    gameLoop();
 });
 
-// Handle bird jump with keyboard
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
-        jumpSound.currentTime = 0; // Reset the sound to start
-        jumpSound.play(); // Play jump sound every time the key is pressed
-
+        if (soundEnabled) {
+            jumpSound.currentTime = 0;  // Reset the sound to the beginning
+            jumpSound.play();
+        }
         if (gameOver) {
-            // Update best score if current score is higher
-            bestScore = Math.max(score, bestScore); 
+            updateBestScore();
             bird = { x: 50, y: 150, size: 30, gravity: 0.15, lift: -5, velocity: 0, image: new Image() };
-            bird.image.src = 'assets/bird.png'; // Reset the bird image on restart
+            bird.image.src = 'assets/bird.png';
             pipes = [];
             frame = 0;
             score = 0;
@@ -216,21 +197,22 @@ window.addEventListener('keydown', (e) => {
             document.getElementById('start-screen').style.display = 'none';
             gameLoop();
         } else {
-            bird.velocity = bird.lift; // Apply lift to the bird if the game is not over
+            bird.velocity = bird.lift;
         }
+    } else if (e.code === 'Escape') {
+        paused = !paused;
     }
 });
 
-// Handle touch event for jump on the entire game area
 canvas.addEventListener('click', () => {
-    jumpSound.currentTime = 0; // Reset the sound to start
-    jumpSound.play(); // Play jump sound on click
-
+    if (soundEnabled) {
+        jumpSound.currentTime = 0;  // Reset the sound to the beginning
+        jumpSound.play();
+    }
     if (gameOver) {
-        // Update best score if current score is higher
-        bestScore = Math.max(score, bestScore); 
+        updateBestScore();
         bird = { x: 50, y: 150, size: 30, gravity: 0.15, lift: -5, velocity: 0, image: new Image() };
-        bird.image.src = 'assets/bird.png'; // Reset the bird image on restart
+        bird.image.src = 'assets/bird.png';
         pipes = [];
         frame = 0;
         score = 0;
@@ -238,6 +220,9 @@ canvas.addEventListener('click', () => {
         document.getElementById('start-screen').style.display = 'none';
         gameLoop();
     } else {
-        bird.velocity = bird.lift; // Apply lift to the bird if the game is not over
+        bird.velocity = bird.lift;
     }
 });
+
+
+
